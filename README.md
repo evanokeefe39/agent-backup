@@ -2,10 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Version](https://img.shields.io/badge/version-0.1.0-2b8a3e)
-![Vibe Coded](https://img.shields.io/badge/vibe_coded-true-critical)
-![Primary harness](https://img.shields.io/badge/primary_harness-oh_my_pi-6b57ff)
 ![Python](https://img.shields.io/badge/python-3.10+-3776AB)
-![Harnesses](https://img.shields.io/badge/harnesses-omp%7Cclaude%7Ccodex%7Cpi%7Chermes-lightgrey)
 
 Generic, manifest-driven backup for AI coding agent harnesses — OMP, Claude Code, Codex, Pi, Hermes, or any custom agent. It backs up a harness's **config** and **memories** plus a **compressed usage/cost ledger** to a private git repo, and optionally mirrors the raw **session transcripts** to object storage (Cloudflare R2, S3-compatible API).
 
