@@ -4,15 +4,9 @@
 ![Version](https://img.shields.io/badge/version-0.2.0-2b8a3e)
 ![Python](https://img.shields.io/badge/python-3.10+-3776AB)
 ![CI](https://github.com/evanokeefe39/agent-backup/actions/workflows/ci.yml/badge.svg)
-![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)
-![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)
-![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)
 
-![Oh My Pi](https://img.shields.io/badge/Oh%20My%20Pi-0EA5A0)
-![Claude Code](https://img.shields.io/badge/Claude%20Code-D97757?logo=claude&logoColor=white)
-![Codex](https://img.shields.io/badge/Codex-412991?logo=openai&logoColor=white)
-![Pi](https://img.shields.io/badge/Pi-4F46E5)
-![Hermes](https://img.shields.io/badge/Hermes-7C3AED)
+**Supported OS:** Windows · macOS · Linux
+**Supported agents:** Oh My Pi (OMP) · Claude Code · Codex · Pi · Hermes · any custom agent (via profile)
 
 <p align="center">
   <img src="docs/agent-backup-hero.png" alt="agent-backup shields OMP, Claude Code, Codex, Pi, and Hermes" width="720">
