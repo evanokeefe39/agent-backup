@@ -1,8 +1,9 @@
 # agent-backup
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Version](https://img.shields.io/badge/version-0.1.0-2b8a3e)
+![Version](https://img.shields.io/badge/version-0.2.0-2b8a3e)
 ![Python](https://img.shields.io/badge/python-3.10+-3776AB)
+![CI](https://github.com/evanokeefe39/agent-backup/actions/workflows/ci.yml/badge.svg)
 
 Generic, manifest-driven backup for AI coding agent harnesses — OMP, Claude Code, Codex, Pi, Hermes, or any custom agent. It backs up a harness's **config** and **memories** plus a **compressed usage/cost ledger** to a private git repo, and optionally mirrors the raw **session transcripts** to object storage (Cloudflare R2, S3-compatible API).
 
@@ -39,11 +40,11 @@ python agent-backup.py sync codex          # config+memory+usage -> git
 python agent-backup.py schedule codex --at 09:15
 ```
 
-Commands: `init`, `sync`, `schedule`, `status`. Each agent gets one repo at
-`~/repos/<name>-backup/` with `config/`, `memory/`, and `usage/` (Parquet).
-Object storage is opt-in — set `BACKUP_OBJECT_STORE=r2` plus `R2_ACCOUNT_ID`,
-`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (in the repo's `.env`,
-which is gitignored) to mirror raw transcripts.
+Commands: `init`, `sync`, `schedule`, `status`, `recover`. Each agent gets one
+repo at `~/repos/<name>-backup/` with `config/`, `memory/`, and `usage/`
+(Parquet). Object storage is opt-in — set `BACKUP_OBJECT_STORE=r2` plus
+`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (in the
+repo's `.env`, which is gitignored) to mirror raw transcripts.
 
 ## Restore (agent-driven, approval-gated)
 

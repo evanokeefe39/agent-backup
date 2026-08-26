@@ -247,6 +247,8 @@ def test_custom_profile_adds_new_agent(tmp_path):
 
 # --- README/robustness: schedule is Python-native (no git-bash/cygpath) on Windows ---
 
+@pytest.mark.skipif(sys.platform != "win32",
+                    reason="Windows-only: Task Scheduler (schtasks) launcher")
 def test_schedule_uses_python_native_launcher_on_windows(agent_home, profile_dir,
                                                          tmp_path, monkeypatch):
     # Force the Windows branch and capture the schtasks invocation.
