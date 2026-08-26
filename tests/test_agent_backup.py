@@ -292,3 +292,15 @@ def test_usage_csv_fallback_without_duckdb(agent_home, profile_dir, tmp_path,
     run_sync(profile_dir, tmp_path / "repos")
     repo = tmp_path / "repos" / "testagent-backup"
     assert (repo / "usage" / "usage.csv").exists()
+
+
+def test_recover_prints_recovery_map(agent_home, profile_dir, tmp_path, capsys):
+    run_init(profile_dir, tmp_path / "repos")
+    run_sync(profile_dir, tmp_path / "repos")
+    agent_backup.cmd_recover(
+        argparse.Namespace(name="testagent", dir=tmp_path / "repos"))
+    out = capsys.readouterr().out
+    assert "backup repo:" in out and "testagent-backup" in out
+    assert "git remote:" in out
+    assert "usage:" in out and "usage.parquet" in out
+    assert "object store:" in out
