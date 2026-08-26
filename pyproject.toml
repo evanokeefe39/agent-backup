@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-backup"
-version = "0.1.0"
+version = "0.2.0"
 description = "Manifest-driven backup for AI coding agent harnesses (OMP, Claude Code, Codex, Pi, Hermes)"
 readme = "README.md"
 license = { text = "MIT" }

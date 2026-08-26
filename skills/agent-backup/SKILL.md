@@ -1,7 +1,7 @@
 ---
 name: agent-backup
 license: MIT
-version: 0.1.0
+version: 0.2.0
 description: >
   Generic manifest-driven backup for AI coding agent harnesses (OMP, Claude
   Code, Codex, Pi, Hermes, and any custom agent). Backs up a harness's config,
