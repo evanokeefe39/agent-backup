@@ -1,0 +1,15 @@
+# GitHub auto-generated release notes template.
+# Used by the "Generate release notes" button in the Releases UI and by
+# `gh release create --generate-notes`. Categorize a PR by adding a label.
+changelog:
+  categories:
+    - title: New features
+      labels: [enhancement, feature]
+    - title: Bug fixes
+      labels: [bug]
+    - title: Documentation
+      labels: [documentation, docs]
+    - title: Maintenance
+      labels: [chore, refactor]
+    - title: Other changes
+      labels: ["*"]
