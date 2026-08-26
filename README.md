@@ -66,17 +66,26 @@ Profiles live in `profiles/<name>.json` — data-driven, no code changes:
 
 MIT
 
+## Platforms
+
+Cross-platform: Windows, macOS, and Linux. The tool is Python 3.10+ stdlib
+(no runtime dependencies). `schedule` registers a Windows Task Scheduler job on
+Windows; on macOS/Linux it prints a cron line to add yourself. The object-store
+mirror (`boto3`) and the Parquet usage ledger (`duckdb` + `pandas`) are optional
+dependencies, enabled only when installed.
+
 ## Testing
 
-The README's claims are covered by a test suite that runs the real `init`/`sync`
-commands against a synthetic agent home:
+Tests are a **dev-only** concern — the skill itself runs on the Python standard
+library with zero runtime dependencies. Install the dev extras to run them:
 
 ```bash
+pip install -e ".[dev]"     # or: uv sync --extra dev
 python -m pytest tests/ -q
 ```
 
-It verifies config/memory backup, secret and runtime exclusion, that the
+The suite runs the real `init`/`sync` commands against a synthetic agent home
+and verifies config/memory backup, secret and runtime exclusion, that the
 harness home is never modified, the DuckDB-queryable usage ledger (per-turn and
 per-day), git commit + first-push, idempotent re-runs (no empty commits), the
 `.env` gitignore + opt-in object store, and adding a custom agent via profile.
-Requires `pytest` and `duckdb`.

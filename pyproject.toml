@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-backup"
+version = "0.1.0"
+description = "Manifest-driven backup for AI coding agent harnesses (OMP, Claude Code, Codex, Pi, Hermes)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+# The skill's core runs on the Python standard library only — no runtime deps.
+dependencies = []
+
+# Test/feature-only dependencies. Install with:  pip install -e ".[dev]"
+[project.optional-dependencies]
+dev = ["pytest", "duckdb", "pandas", "boto3"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
