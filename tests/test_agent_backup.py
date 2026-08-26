@@ -251,6 +251,10 @@ def test_schedule_uses_python_native_launcher_on_windows(agent_home, profile_dir
                                                          tmp_path, monkeypatch):
     # Force the Windows branch and capture the schtasks invocation.
     monkeypatch.setattr(agent_backup.os, "name", "nt")
+    # os.name="nt" makes os.path.expanduser (ntpath) mangle POSIX temp paths
+    # into "\private\..." on Linux/macOS runners. This test targets the Windows
+    # *launcher* logic, not home resolution, so pin the home to the fixture.
+    monkeypatch.setattr(agent_backup, "resolve_home", lambda profile: agent_home)
     run_init(profile_dir, tmp_path / "repos")
     captured = {}
 
