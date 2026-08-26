@@ -531,32 +531,27 @@ def cmd_schedule(args):
         err(f"repo not initialized: {repo}")
         sys.exit(1)
     sync_script = Path(__file__).resolve()
+    task = f"agent-backup-{args.name}"
     if os.name == "nt":
-        bash = shutil.which("bash") or r"C:\Program Files\Git\bin\bash.exe"
-        if not bash or not Path(bash).exists():
-            err("bash not found; install git-bash or add it to PATH")
-            sys.exit(1)
-        # wrapper that sets the repo dir and calls sync (LF only; CRLF breaks bash)
-        wrapper = repo / "sync.sh"
-        wrapper.write_bytes(
-            ("#!/usr/bin/env bash\nset -euo pipefail\n"
-             f'cd "{repo}"\n"{sys.executable}" "{sync_script}" sync {args.name}\n'
-             ).encode("utf-8"))
-        try:
-            msys = subprocess.check_output(
-                ["cygpath", "-m", str(wrapper)], text=True).strip()
-        except (OSError, subprocess.CalledProcessError):
-            msys = "/" + str(wrapper)[0].lower() + str(wrapper)[2:].replace("\\", "/")
-        task = f"agent-backup-{args.name}"
+        # Python-native launcher (.cmd) — no git-bash / cygpath dependency.
+        # cmd_sync is cwd-independent, so the launcher only needs to run
+        # `python <script> --dir <root> sync <name>` via sys.executable.
+        launcher = repo / "sync.cmd"
+        launcher.write_text(
+            '@echo off\r\n'
+            f'"{sys.executable}" "{sync_script}" --dir "{args.dir}" sync {args.name}\r\n',
+            encoding="utf-8")
         res = subprocess.run(
             ["schtasks", "/create", "/tn", task, "/tr",
-             f'"{bash}" -lc "{msys}"', "/sc", "daily", "/st", args.at, "/f"],
+             f'cmd /c "{launcher}"', "/sc", "daily", "/st", args.at, "/f"],
             capture_output=True, text=True)
         print(res.stdout.strip() or res.stderr.strip())
-        log(f"scheduled task '{task}' daily at {args.at} -> {wrapper}")
+        log(f"scheduled task '{task}' daily at {args.at} -> {launcher}")
     else:
+        # No OS-agnostic scheduler exists in the stdlib; system scheduling is
+        # platform-specific. On Linux/macOS a cron line works on both.
         log("unix: add a cron line, e.g.")
-        log(f'30 9 * * * cd "{repo}" && "{sys.executable}" "{sync_script}" sync {args.name}')
+        log(f'30 9 * * * "{sys.executable}" "{sync_script}" --dir "{args.dir}" sync {args.name}')
 
 
 def cmd_status(args):

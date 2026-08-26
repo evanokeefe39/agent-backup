@@ -245,7 +245,37 @@ def test_custom_profile_adds_new_agent(tmp_path):
     assert (repo / "config" / "conf" / "settings.json").exists()
 
 
-# --- README: usage ledger degrades to CSV without duckdb ---
+# --- README/robustness: schedule is Python-native (no git-bash/cygpath) on Windows ---
+
+def test_schedule_uses_python_native_launcher_on_windows(agent_home, profile_dir,
+                                                         tmp_path, monkeypatch):
+    # Force the Windows branch and capture the schtasks invocation.
+    monkeypatch.setattr(agent_backup.os, "name", "nt")
+    run_init(profile_dir, tmp_path / "repos")
+    captured = {}
+
+    class _FakeResult:
+        stdout, stderr = "SUCCESS", ""
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = list(cmd)
+        return _FakeResult()
+
+    monkeypatch.setattr(agent_backup.subprocess, "run", fake_run)
+    agent_backup.cmd_schedule(
+        argparse.Namespace(name="testagent", dir=tmp_path / "repos", at="09:15"))
+
+    launcher = tmp_path / "repos" / "testagent-backup" / "sync.cmd"
+    assert launcher.exists(), "expected a .cmd launcher to be written"
+    text = launcher.read_text()
+    assert agent_backup.sys.executable in text
+    assert "sync" in text
+
+    cmd = " ".join(captured["cmd"])
+    assert "schtasks" in cmd and "/create" in cmd
+    assert "bash" not in cmd.lower() and "cygpath" not in cmd.lower(), \
+        f"Windows scheduling still depends on bash/cygpath: {cmd}"
+    assert "sync.cmd" in cmd
 
 def test_usage_csv_fallback_without_duckdb(agent_home, profile_dir, tmp_path,
                                            monkeypatch):
