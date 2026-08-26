@@ -18,6 +18,7 @@ Usage:
   agent-backup sync <name>
   agent-backup schedule <name> [--at HH:MM]
   agent-backup status <name>
+  agent-backup recover <name>       # print known recovery paths (agent-driven restore)
 
 Profiles live in ./profiles/<name>.json. Object storage is opt-in: set
 R2_ACCOUNT_ID/R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY/R2_BUCKET (+BACKUP_OBJECT_STORE=r2)
@@ -441,6 +442,79 @@ def mirror_sessions(profile, home):
 
 
 # --------------------------------------------------------------------------
+# Recovery (emits the known recovery paths; the agent decides how to restore)
+# --------------------------------------------------------------------------
+
+def _r2():
+    """Return (s3_client, bucket) when R2 is configured, else None."""
+    account = os.environ.get("R2_ACCOUNT_ID", "").strip()
+    key = os.environ.get("R2_ACCESS_KEY_ID", "").strip()
+    secret = os.environ.get("R2_SECRET_ACCESS_KEY", "").strip()
+    bucket = os.environ.get("R2_BUCKET", "").strip()
+    if os.environ.get("BACKUP_OBJECT_STORE", "").strip().lower() != "r2" \
+            or not all([account, key, secret, bucket]):
+        return None
+    try:
+        import boto3
+        from botocore.client import Config
+    except ImportError:
+        return None
+    endpoint = os.environ.get("R2_ENDPOINT", "").strip() or \
+        f"https://{account}.r2.cloudflarestorage.com"
+    client = boto3.client("s3", endpoint_url=endpoint, region_name="auto",
+                          aws_access_key_id=key, aws_secret_access_key=secret,
+                          config=Config(signature_version="s3v4"))
+    return client, bucket
+
+
+def cmd_recover(args):
+    """Print where an agent's backed-up data lives so the agent can decide how
+    to restore it. Facts only — restore itself is agent-orchestrated (see
+    SKILL.md 'Restore'): pull/clone the repo, map config/memory back to the
+    profile's home paths, optionally pull sessions from R2."""
+    profile = load_profile(args.name)
+    home = resolve_home(profile)
+    repo = args.dir / f"{args.name}-backup"
+    print(f"agent:        {args.name}")
+    print(f"home:         {home}  ({'exists' if home.exists() else 'MISSING'})")
+    print(f"backup repo:  {repo}  ({'present' if repo.exists() else 'MISSING'})")
+    if repo.exists():
+        remote = run_git(repo, "remote", "get-url", "origin",
+                         check=False).stdout.strip()
+        print(f"  git remote: {remote or 'none set'}")
+        for cat in ("config", "memory"):
+            base = repo / cat
+            n = len([p for p in base.rglob("*") if p.is_file()]) if base.is_dir() else 0
+            print(f"  {cat + ':':9s} {n} file(s)")
+        usage = repo / "usage"
+        files = sorted(p.name for p in usage.iterdir()) if usage.is_dir() else []
+        print(f"  usage:      {', '.join(files) or 'none'}")
+        head = run_git(repo, "log", "-1", "--format=%h %ad %s", "--date=short",
+                       check=False).stdout.strip()
+        print(f"  latest:     {head or 'no commits'}")
+    r2 = _r2()
+    if r2:
+        client, bucket = r2
+        prefix = f"{profile['name']}/raw/"
+        keys, tok = [], None
+        while True:
+            kw = dict(Bucket=bucket, Prefix=prefix)
+            if tok:
+                kw["ContinuationToken"] = tok
+            resp = client.list_objects_v2(**kw)
+            keys += resp.get("Contents", [])
+            if resp.get("IsTruncated"):
+                tok = resp.get("NextContinuationToken")
+            else:
+                break
+        print(f"object store: R2 bucket '{bucket}', prefix '{prefix}' "
+              f"({len(keys)} object(s))")
+    else:
+        print("object store: not configured (sessions restore needs "
+              "BACKUP_OBJECT_STORE=r2 + R2_* env vars)")
+
+
+# --------------------------------------------------------------------------
 # Commands
 # --------------------------------------------------------------------------
 
@@ -587,9 +661,11 @@ def main():
     p_sched = sub.add_parser("schedule"); p_sched.add_argument("name")
     p_sched.add_argument("--at", default="09:30")
     p_stat = sub.add_parser("status"); p_stat.add_argument("name")
+    p_rec = sub.add_parser("recover"); p_rec.add_argument("name")
     args = ap.parse_args()
     {"init": cmd_init, "sync": cmd_sync,
-     "schedule": cmd_schedule, "status": cmd_status}[args.cmd](args)
+     "schedule": cmd_schedule, "status": cmd_status,
+     "recover": cmd_recover}[args.cmd](args)
 
 
 if __name__ == "__main__":

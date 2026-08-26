@@ -45,6 +45,24 @@ Object storage is opt-in — set `BACKUP_OBJECT_STORE=r2` plus `R2_ACCOUNT_ID`,
 `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (in the repo's `.env`,
 which is gitignored) to mirror raw transcripts.
 
+## Restore (agent-driven, approval-gated)
+
+`recover` prints the known recovery paths; restore itself is a gated,
+agent-driven flow, not a blind copy:
+
+```bash
+python agent-backup.py recover codex
+```
+
+The agent gathers the recovery map, **diffs** the latest backup against the
+current agent state, produces an **impact assessment** (what changes
+irreversibly — files that exist and differ from the backup get overwritten),
+snapshots anything it will touch, and then **gates on your explicit approval**
+before writing anything. On approval it restores config/memory from the backup
+repo (cloned or pulled) and optionally downloads session transcripts from R2
+(`<agent>/raw/`). Secrets were never backed up, so none return. If you decline,
+nothing changes.
+
 ## Adding a new agent
 
 Profiles live in `profiles/<name>.json` — data-driven, no code changes:

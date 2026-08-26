@@ -99,6 +99,47 @@ Transcripts upload under `<agent>/raw/<path>`, incremental (only new/changed
 files, tracked by a manifest). Without this config, `sync` skips sessions
 cleanly — config/memory/usage still back up.
 
+## Restore (agent-driven, approval-gated)
+
+Restore is a **judgment-driven, gated** procedure — never a blind copy-back.
+`recover` prints the facts; the agent decides, assesses, and must get user
+approval before writing anything.
+
+```bash
+python agent-backup.py recover <name>
+```
+
+It reports the backup repo path + git remote, how many config/memory files it
+holds, the usage ledger, and the object-store bucket/prefix.
+
+### Procedure (follow in order)
+
+1. **Gather** — run `recover`, then inspect the backup: `git log` the repo,
+   list what's under `config/`, `memory/`, and the usage ledger; note the
+   latest backup commit and the object-store prefix.
+2. **Diff** — compare each backed-up file against the current agent state:
+   for every backup `config/`/`memory/` file, does the matching home path exist
+   and does it differ? Enumerate what would be added, overwritten, or left alone.
+   Extra-homes restore from `<basename>/` back to that extra home root.
+3. **Impact assessment** — state plainly what changes **irreversibly**: any
+   current home file that exists and differs from the backup would be
+   overwritten (and its current content lost unless snapshotted). Distinguish
+   additive/restorative changes from destructive ones.
+4. **Safety plan** — before any write, snapshot the affected current home files
+   (e.g. copy them to `<home>/.agent-backup-before-restore-<ts>/`) so nothing is
+   lost. Sessions (opt-in) restore from R2 `<agent>/raw/` to the matching home
+   paths. Secrets were never backed up, so none return.
+5. **GATE** — present the diff + impact assessment to the user and get explicit
+   approval before writing. Use the ask/approval mechanism; do **not** restore
+   without it. If the user declines, stop — change nothing.
+6. **Execute** — on approval: snapshot, then restore config/memory from the
+   repo (clone or pull), optionally restore sessions from R2, and verify the
+   result.
+
+The agent may clone-vs-reuse the repo, restore selectively, and choose the
+order — but never writes to the harness home without the impact assessment and
+user approval.
+
 ## Adding a new agent
 
 ```bash
