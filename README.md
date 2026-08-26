@@ -6,11 +6,8 @@
 ![CI](https://github.com/evanokeefe39/agent-backup/actions/workflows/ci.yml/badge.svg)
 
 **Supported OS:** Windows · macOS · Linux
-**Supported agents:** Oh My Pi (OMP) · Claude Code · Codex · Pi · Hermes · any custom agent (via profile)
 
-<p align="center">
-  <img src="docs/agent-backup-hero.png" alt="agent-backup shields OMP, Claude Code, Codex, Pi, and Hermes" width="720">
-</p>
+**Supported agents:** Oh My Pi (OMP) · Claude Code · Codex · Pi · Hermes · any custom agent (via profile)
 
 Generic, manifest-driven backup for AI coding agent harnesses — OMP, Claude Code, Codex, Pi, Hermes, or any custom agent. It backs up a harness's **config** and **memories** plus a **compressed usage/cost ledger** to a private git repo, and optionally mirrors the raw **session transcripts** to object storage (Cloudflare R2, S3-compatible API).
 
