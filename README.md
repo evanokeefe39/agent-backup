@@ -4,12 +4,21 @@
 ![Version](https://img.shields.io/badge/version-0.2.0-2b8a3e)
 ![Python](https://img.shields.io/badge/python-3.10+-3776AB)
 ![CI](https://github.com/evanokeefe39/agent-backup/actions/workflows/ci.yml/badge.svg)
+![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)
+![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)
+
+<p align="center">
+  <img src="docs/agent-backup-hero.png" alt="agent-backup shields OMP, Claude Code, Codex, Pi, and Hermes" width="720">
+</p>
 
 Generic, manifest-driven backup for AI coding agent harnesses — OMP, Claude Code, Codex, Pi, Hermes, or any custom agent. It backs up a harness's **config** and **memories** plus a **compressed usage/cost ledger** to a private git repo, and optionally mirrors the raw **session transcripts** to object storage (Cloudflare R2, S3-compatible API).
 
 It never touches the harness's own directories — it copies the valuable data into your own backup repos, and always excludes secrets (`auth.json`, `.env`) and runtime state (`node_modules`, caches, logs, DBs).
 
 > **Disclaimer:** This skill is **vibe-coded** — built iteratively for personal use and primarily exercised against the **Oh My Pi** harness. OMP is the most-tested target; the Claude Code, Codex, Pi, and Hermes profiles are supported but less battle-tested. It ships without warranty — review it before relying on it, and note that the raw-transcript object-store upload is strictly opt-in. The test suite (see [Testing](#testing)) verifies the claims in this README.
+
+> **Logos:** Claude Code, Codex, Pi, Hermes, and Oh My Pi marks are trademarks of their respective owners; they appear here only to identify the supported harnesses.
 
 ## Install
 
