@@ -15,8 +15,6 @@ It never touches the harness's own directories — it copies the valuable data i
 
 > **Disclaimer:** This skill is **vibe-coded** — built iteratively for personal use and primarily exercised against the **Oh My Pi** harness. OMP is the most-tested target; the Claude Code, Codex, Pi, and Hermes profiles are supported but less battle-tested. It ships without warranty — review it before relying on it, and note that the raw-transcript object-store upload is strictly opt-in. The test suite (see [Testing](#testing)) verifies the claims in this README.
 
-> **Logos:** Claude Code, Codex, Pi, Hermes, and Oh My Pi marks are trademarks of their respective owners; they appear here only to identify the supported harnesses.
-
 ## Install
 
 **Pi** (auto-discovers `skills/agent-backup/SKILL.md`):
