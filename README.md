@@ -8,6 +8,12 @@
 ![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)
 
+![Oh My Pi](https://img.shields.io/badge/Oh%20My%20Pi-0EA5A0)
+![Claude Code](https://img.shields.io/badge/Claude%20Code-D97757?logo=anthropic&logoColor=white)
+![Codex](https://img.shields.io/badge/Codex-111827?logo=openai&logoColor=white)
+![Pi](https://img.shields.io/badge/Pi-4F46E5)
+![Hermes](https://img.shields.io/badge/Hermes-7C3AED)
+
 <p align="center">
   <img src="docs/agent-backup-hero.png" alt="agent-backup shields OMP, Claude Code, Codex, Pi, and Hermes" width="720">
 </p>
