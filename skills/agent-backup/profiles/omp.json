@@ -1,0 +1,26 @@
+{
+  "name": "omp",
+  "home": "~/.omp/agent",
+  "config": [
+    "config.yml",
+    "APPEND_SYSTEM.md",
+    "AGENTS.md",
+    "agents/",
+    "skills/"
+  ],
+  "extra_homes": [
+    {
+      "path": "~/.omp",
+      "config": ["rules/", "skills/", "marketplaces.json", "plugins/package.json"]
+    }
+  ],
+  "memory": ["memories/"],
+  "sessions": ["sessions/"],
+  "usage": { "format": "jsonl", "has_cost": true },
+  "secrets": [],
+  "runtime": [
+    "*.db", "*.db-wal", "*.db-shm", "last-changelog-version",
+    "blobs/", "cache/", "terminal-sessions/", "logs/", "run/",
+    "natives/", "wt/", "puppeteer/", "gpu_cache.json"
+  ]
+}

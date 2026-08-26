@@ -1,0 +1,25 @@
+{
+  "name": "claude-code",
+  "home": "~/.claude",
+  "config": [
+    "settings.json",
+    "settings.local.json",
+    "CLAUDE.md",
+    "skills/",
+    "hooks/",
+    "plugins/",
+    "agents/",
+    "commands/",
+    ".claude/"
+  ],
+  "memory": ["plans/", "tasks/"],
+  "sessions": ["projects/", "sessions/", "history.jsonl"],
+  "usage": { "format": "jsonl", "has_cost": true },
+  "secrets": [".credentials.json", ".mcp.json", "mcp-needs-auth-cache.json"],
+  "runtime": [
+    "cache/", "backups/", "daemon/", "daemon.lock", "debug/", "downloads/",
+    "file-history/", "shell-snapshots/", "telemetry/", "paste-cache/",
+    "sounds/", "ide/", "jobs/", "stats-cache.json", "session-env/",
+    "claude-rts-alert/", ".last-cleanup", ".last-update-result.json", "*.log"
+  ]
+}

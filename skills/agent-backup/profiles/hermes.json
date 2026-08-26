@@ -1,0 +1,11 @@
+{
+  "name": "hermes",
+  "home": "~/.hermes",
+  "home_env": "HERMES_HOME",
+  "config": ["config.yaml"],
+  "memory": ["plans/"],
+  "sessions": [],
+  "usage": { "format": "none" },
+  "secrets": [".env"],
+  "runtime": []
+}

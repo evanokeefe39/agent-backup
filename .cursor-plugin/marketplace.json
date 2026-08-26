@@ -1,0 +1,18 @@
+{
+  "name": "agent-backup",
+  "owner": {
+    "name": "evanokeefe39",
+    "url": "https://github.com/evanokeefe39"
+  },
+  "plugins": [
+    {
+      "name": "agent-backup",
+      "source": "./skills/agent-backup",
+      "description": "Generic manifest-driven backup for AI coding agent harnesses (OMP, Claude Code, Codex, Pi, Hermes): backs up config, memories, and compressed usage metrics to a private git repo, and optionally mirrors raw session transcripts to object storage (R2).",
+      "version": "0.1.0",
+      "license": "MIT",
+      "repository": "https://github.com/evanokeefe39/agent-backup",
+      "keywords": ["backup", "agent", "skills", "config", "memory", "usage", "r2"]
+    }
+  ]
+}

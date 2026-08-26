@@ -1,0 +1,10 @@
+{
+  "name": "codex",
+  "home": "~/.codex",
+  "config": ["config.toml"],
+  "memory": [],
+  "sessions": ["sessions/"],
+  "usage": { "format": "jsonl", "has_cost": false },
+  "secrets": ["auth.json"],
+  "runtime": ["log/", "cache/"]
+}

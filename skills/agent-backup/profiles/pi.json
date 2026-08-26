@@ -1,0 +1,25 @@
+{
+  "name": "pi",
+  "home": "~/.pi/agent",
+  "home_env": "PI_CODING_AGENT_DIR",
+  "config": [
+    "settings.json",
+    "models.json",
+    "keybindings.json",
+    "skills/",
+    "subagents/",
+    "extensions/",
+    "audio-alerts.yaml"
+  ],
+  "extra_homes": [
+    {
+      "path": "~/.pi",
+      "config": ["AGENTS.md", "plans/", "tasks/", "provider-strategy.md", "fallback-chains.json"]
+    }
+  ],
+  "memory": ["projects-memory/", "pi-hermes-memory/"],
+  "sessions": ["sessions/", "run-history.jsonl"],
+  "usage": { "format": "jsonl", "has_cost": true },
+  "secrets": ["auth.json", "auth.json.lock"],
+  "runtime": ["npm/", "git/", "bin/", "rts-sounds/", "audio-alerts-config.json"]
+}
