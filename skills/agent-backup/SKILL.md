@@ -4,11 +4,14 @@ license: MIT
 version: 0.2.0
 description: >
   Generic manifest-driven backup for AI coding agent harnesses (OMP, Claude
-  Code, Codex, Pi, Hermes, and any custom agent). Backs up a harness's config,
-  memories, and compressed usage metrics to a private git repo, and optionally
-  mirrors raw session transcripts to object storage (R2, S3-compatible API).
-  Use when asked to back up, replicate, version, or schedule backups of an
-  agent's config/data, or to set up a new harness for backup.
+  Code, Codex, Pi, Hermes, and any custom agent). Backs up a harness's config
+  and hand-written memory state, plus compressed usage metrics, to a private
+  git repo, and optionally mirrors raw session transcripts to object storage
+  (R2, S3-compatible API). Memory a harness *generates* is data, not git: its
+  profile names the object-store custodian that already holds it, instead of
+  this tool copying it. Use when asked to back up, replicate, version, or
+  schedule backups of an agent's config/data, or to set up a new harness for
+  backup.
 ---
 
 # agent-backup
@@ -26,7 +29,8 @@ profile/agent subdir) holding four buckets:
 | Bucket | Examples | Backup target |
 |---|---|---|
 | `config` | settings, skills, rules, commands, prompts, agents | git (small, versioned) |
-| `memory` | memories, project state, long-term context | git (critical, versioned) |
+| `memory` | hand-written notes, project state, long-term context | git (critical, versioned) |
+| `memory` — generated | a tree the harness rebuilds from its own sessions | object storage, via the custodian the profile names |
 | `sessions` | JSONL transcripts, project history | usage metrics → git; raw → object storage (opt-in) |
 | `secrets` / `runtime` | auth.json, .env, node_modules, caches, logs, DBs | never backed up |
 
@@ -34,6 +38,39 @@ Profiles (in `profiles/<name>.json`) declare exactly which paths fall in each
 bucket. Everything under `secrets` + `runtime` is excluded automatically,
 plus a built-in default that always skips `**/node_modules`, `.git/`,
 `__pycache__`.
+
+### Memory is a git bucket only when it is hand-written
+
+`config` and `memory` hold state a person wrote and git should version. Memory a
+harness *generates* is derived data, and a harness that generates it normally
+mirrors it to object storage already. A second copy in git duplicates that
+mirror, and it puts derived data into a history read as a record of what the
+agent was told.
+
+A profile declares which it is by naming a `memory_custodian` and leaving the
+bucket empty:
+
+```json
+"memory": [],
+"memory_custodian": "data, not git: <repo> mirrors the tree to R2 under <prefix>/"
+```
+
+With one declared, `sync` copies nothing, prunes any `memory/` copy an earlier
+sync left in the repo, and writes `config+usage` rather than
+`config+memory+usage` as its commit subject; `status` and `recover` print the
+custodian line where they would print a file count. That line is the point: a
+bare `memory: 0 files` reads as a bucket that failed to copy.
+
+A profile that declares a custodian **and** a non-empty `memory` list says two
+opposite things, so `sync`, `status` and `recover` refuse it with the key to
+remove rather than picking one — the silent choice would stop backing up notes
+that an earlier sync had already put in the repo, and prune them.
+
+OMP is the case in hand — `omp.json` declares a custodian and an empty bucket,
+because omp's consolidation pipeline generates `~/.omp/agent/memories/` from the
+session transcripts, `example-data` mirrors it to Cloudflare R2 under
+`omp/memories/`, and the harness's own config repo (`example-config`) ignores the
+tree and versions nothing under it.
 
 ## Usage
 
@@ -43,7 +80,8 @@ cd ~/.omp/skills/agent-backup
 # 1. Initialize a repo for an agent (creates ~/repos/<name>-backup/)
 python agent-backup.py init codex --remote https://github.com/<you>/codex-backup.git
 
-# 2. Back it up (copy config+memory, extract usage Parquet, commit/push)
+# 2. Back it up (copy config + any git-backed memory, extract usage Parquet,
+#    commit/push)
 python agent-backup.py sync codex
 
 # 3. Schedule it daily. On Windows this registers a Task Scheduler job
@@ -60,7 +98,9 @@ and reports the missing upstream.
 
 ## Built-in profiles
 
-- `omp` — `~/.omp/agent` (+ `~/.omp` extras: rules, skills, plugins)
+- `omp` — `~/.omp/agent` (+ `~/.omp` extras: rules, skills, plugins); memory is
+  **not** in git here (see the memory subsection above — `example-data` mirrors
+  the generated tree to R2)
 - `claude-code` — `~/.claude`
 - `codex` — `~/.codex`
 - `pi` — `~/.pi/agent` (+ `~/.pi` extras), respects `PI_CODING_AGENT_DIR`
@@ -97,7 +137,8 @@ R2_BUCKET=...
 
 Transcripts upload under `<agent>/raw/<path>`, incremental (only new/changed
 files, tracked by a manifest). Without this config, `sync` skips sessions
-cleanly — config/memory/usage still back up.
+cleanly — config and any git-backed memory still back up, and the usage ledger
+still extracts.
 
 ## Restore (agent-driven, approval-gated)
 
@@ -109,14 +150,17 @@ approval before writing anything.
 python agent-backup.py recover <name>
 ```
 
-It reports the backup repo path + git remote, how many config/memory files it
-holds, the usage ledger, and the object-store bucket/prefix.
+It reports the backup repo path + git remote, how many config files it holds,
+the usage ledger, the object-store bucket/prefix, and — for a profile that
+declares one — the memory custodian in place of a memory file count.
 
 ### Procedure (follow in order)
 
 1. **Gather** — run `recover`, then inspect the backup: `git log` the repo,
-   list what's under `config/`, `memory/`, and the usage ledger; note the
-   latest backup commit and the object-store prefix.
+   list what's under `config/` and `memory/`, and the usage ledger; note the
+   latest backup commit and the object-store prefix. A profile with a
+   `memory_custodian` holds no memory here: recover the tree from the store that
+   line names (for OMP, the R2 prefix `omp/memories/`), not from the repo.
 2. **Diff** — compare each backed-up file against the current agent state:
    for every backup `config/`/`memory/` file, does the matching home path exist
    and does it differ? Enumerate what would be added, overwritten, or left alone.
@@ -132,9 +176,9 @@ holds, the usage ledger, and the object-store bucket/prefix.
 5. **GATE** — present the diff + impact assessment to the user and get explicit
    approval before writing. Use the ask/approval mechanism; do **not** restore
    without it. If the user declines, stop — change nothing.
-6. **Execute** — on approval: snapshot, then restore config/memory from the
-   repo (clone or pull), optionally restore sessions from R2, and verify the
-   result.
+6. **Execute** — on approval: snapshot, then restore config and any git-backed
+   memory from the repo (clone or pull), optionally restore sessions from R2 and
+   any custodied memory from the store `recover` named, and verify the result.
 
 The agent may clone-vs-reuse the repo, restore selectively, and choose the
 order — but never writes to the harness home without the impact assessment and
@@ -157,6 +201,12 @@ cat > profiles/my-agent.json <<'EOF'
 EOF
 python agent-backup.py init my-agent && python agent-backup.py sync my-agent
 ```
+
+If that harness *generates* its memory rather than having you write it, do not
+put it in `memory`: set `"memory": []` and declare where it actually lives —
+`"memory_custodian": "<who mirrors it, and under what prefix>"` — so `sync` does
+not duplicate the mirror and `status`/`recover` say so instead of reporting an
+empty bucket. `omp.json` is the worked example.
 
 Run `status` first to confirm the profile resolves the right paths and that
 the file counts are sane (a config count in the tens of thousands usually means

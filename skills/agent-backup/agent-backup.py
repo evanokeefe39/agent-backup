@@ -4,14 +4,16 @@
 Backs up an agent harness's home directory the same way regardless of which
 harness it is. Each harness has a profile (JSON) declaring four buckets:
   config    -> small, versioned in git (settings, skills, rules, prompts)
-  memory    -> critical, versioned in git (memories, project state)
+  memory    -> critical, versioned in git (memories, project state) — unless the
+               profile names a non-git custodian, for a harness that generates
+               its memory and already mirrors it to object storage
   sessions  -> large transcripts; compressed usage metrics -> git, and the raw
                transcripts mirror to object storage (opt-in)
   secrets/runtime -> always excluded
 
 Per agent this produces one private git repo at ~/repos/<name>-backup/ with
-config/, memory/, usage/ (Parquet ledger), plus optional object-storage mirror
-of the raw transcripts.
+config/, usage/ (Parquet ledger) and — when the profile keeps memory in git —
+memory/, plus optional object-storage mirror of the raw transcripts.
 
 Usage:
   agent-backup init <name> [--remote <url>]
@@ -164,6 +166,41 @@ def extra_home_items(profile, category, secrets, runtime):
     return out
 
 
+def memory_custodian(profile):
+    """The non-git custodian a profile declares for its memory bucket, or "".
+
+    A harness that *generates* its memory — OMP's consolidation pipeline rewrites
+    `agent/memories/` from the session transcripts — already mirrors that tree to
+    object storage, and a second copy in git is duplicated derived data in a
+    history read as a record of what the agent was told. Such a profile declares
+    `memory_custodian` and an empty `memory` list: `sync` copies nothing and
+    prunes any copy an earlier sync left behind, and `status`/`recover` print this
+    line where they would print a file count. That line is the whole point — a
+    bare `memory: 0 files` reads as a bucket that failed to copy."""
+    return str(profile.get("memory_custodian", "")).strip()
+
+
+def memory_conflict(profile):
+    """The error a profile raises by declaring both a memory bucket and a non-git
+    custodian, or "" when the two agree.
+
+    A custodian says "this harness's memory is not copied into the backup repo",
+    so a profile that also lists paths in `memory` says two opposite things.
+    Resolving that silently is how notes stop being backed up: `sync` would take
+    the custodian branch, copy nothing, and prune whatever an earlier sync had
+    already put in the repo — reporting success while doing it. Refuse instead,
+    and say which key to remove."""
+    custodian = memory_custodian(profile)
+    bucket = profile.get("memory") or []
+    if not (custodian and bucket):
+        return ""
+    name = profile.get("name", "?")
+    return (f"profile '{name}' sets both 'memory' ({len(bucket)} pattern(s): "
+            f"{', '.join(str(p) for p in bucket)}) and 'memory_custodian'. A "
+            "custodian means memory is not copied into the backup repo, so the "
+            "bucket must be empty — remove one of the two.")
+
+
 def copy_items(items, dest_root):
     for rel, abspath in items:
         dst = dest_root / rel
@@ -173,8 +210,20 @@ def copy_items(items, dest_root):
 
 def reconcile(dest_dir, kept_rels):
     """Delete files under dest_dir that are not in kept_rels (rsync-style
-    mirror), so deleted source files are pruned from the backup repo."""
+    mirror), so deleted source files are pruned from the backup repo.
+
+    Refuses when dest_dir is itself a link. `rglob` follows a linked root, so
+    unlinking through it would delete the *target's* files — a live tree, not the
+    backup. A linked directory *inside* the root is safe: `rglob` does not
+    descend into one, so only the link itself is removed."""
     if not dest_dir.exists():
+        return
+    # `is_junction` is Python 3.12+, and `is_symlink` does not report a Windows
+    # junction, so both are checked.
+    is_junction = getattr(dest_dir, "is_junction", None)
+    if dest_dir.is_symlink() or (is_junction and is_junction()):
+        err(f"  prune: refusing to reconcile {dest_dir}: it is a link, so "
+            "deleting through it would delete the target's files")
         return
     for f in sorted(dest_dir.rglob("*")):
         if not f.is_file():
@@ -470,19 +519,27 @@ def _r2():
 def cmd_recover(args):
     """Print where an agent's backed-up data lives so the agent can decide how
     to restore it. Facts only — restore itself is agent-orchestrated (see
-    SKILL.md 'Restore'): pull/clone the repo, map config/memory back to the
-    profile's home paths, optionally pull sessions from R2."""
+    SKILL.md 'Restore'): pull/clone the repo, map config and any git-backed
+    memory back to the profile's home paths, optionally pull sessions from R2.
+    A profile that keeps memory elsewhere prints that custodian instead."""
     profile = load_profile(args.name)
+    conflict = memory_conflict(profile)
+    if conflict:
+        err(f"recover: ERROR: {conflict}")
+        sys.exit(1)
     home = resolve_home(profile)
     repo = args.dir / f"{args.name}-backup"
     print(f"agent:        {args.name}")
     print(f"home:         {home}  ({'exists' if home.exists() else 'MISSING'})")
+    custodian = memory_custodian(profile)
     print(f"backup repo:  {repo}  ({'present' if repo.exists() else 'MISSING'})")
     if repo.exists():
         remote = run_git(repo, "remote", "get-url", "origin",
                          check=False).stdout.strip()
         print(f"  git remote: {remote or 'none set'}")
         for cat in ("config", "memory"):
+            if cat == "memory" and custodian:
+                continue
             base = repo / cat
             n = len([p for p in base.rglob("*") if p.is_file()]) if base.is_dir() else 0
             print(f"  {cat + ':':9s} {n} file(s)")
@@ -492,6 +549,8 @@ def cmd_recover(args):
         head = run_git(repo, "log", "-1", "--format=%h %ad %s", "--date=short",
                        check=False).stdout.strip()
         print(f"  latest:     {head or 'no commits'}")
+    if custodian:
+        print(f"  memory:     not in git — {custodian}")
     r2 = _r2()
     if r2:
         client, bucket = r2
@@ -553,6 +612,10 @@ def cmd_init(args):
 
 def cmd_sync(args):
     profile = load_profile(args.name)
+    conflict = memory_conflict(profile)
+    if conflict:
+        err(f"sync: ERROR: {conflict}")
+        sys.exit(1)
     home = resolve_home(profile)
     repo = args.dir / f"{args.name}-backup"
     if not repo.exists():
@@ -573,14 +636,21 @@ def cmd_sync(args):
     except Exception as e:
         err(f"sync: ERROR: config copy failed: {e}")
 
-    try:
-        memory_items = collect(home, profile.get("memory", []), secrets, runtime)
-        memory_items += extra_home_items(profile, "memory", secrets, runtime)
-        copy_items(memory_items, repo / "memory")
-        reconcile(repo / "memory", {r.as_posix() for r, _ in memory_items})
-        log(f"  memory: {len(memory_items)} files")
-    except Exception as e:
-        err(f"sync: ERROR: memory copy failed: {e}")
+    custodian = memory_custodian(profile)
+    if custodian:
+        # Memory moved out of git: prune whatever an earlier sync copied, so the
+        # repo cannot keep two generations of generated memory.
+        reconcile(repo / "memory", set())
+        log(f"  memory: not copied — {custodian}")
+    else:
+        try:
+            memory_items = collect(home, profile.get("memory", []), secrets, runtime)
+            memory_items += extra_home_items(profile, "memory", secrets, runtime)
+            copy_items(memory_items, repo / "memory")
+            reconcile(repo / "memory", {r.as_posix() for r, _ in memory_items})
+            log(f"  memory: {len(memory_items)} files")
+        except Exception as e:
+            err(f"sync: ERROR: memory copy failed: {e}")
 
     try:
         extract_usage(profile, home, repo / "usage")
@@ -588,7 +658,8 @@ def cmd_sync(args):
         err(f"sync: ERROR: usage extraction failed: {e}")
 
     log("  git:")
-    git_sync(repo, f"backup: {args.name} config+memory+usage {datetime.now():%F %H:%M}")
+    contents = "config+usage" if custodian else "config+memory+usage"
+    git_sync(repo, f"backup: {args.name} {contents} {datetime.now():%F %H:%M}")
 
     try:
         load_env(repo)
@@ -630,6 +701,10 @@ def cmd_schedule(args):
 
 def cmd_status(args):
     profile = load_profile(args.name)
+    conflict = memory_conflict(profile)
+    if conflict:
+        err(f"status: ERROR: {conflict}")
+        sys.exit(1)
     home = resolve_home(profile)
     repo = args.dir / f"{args.name}-backup"
     print(f"agent:        {args.name}")
@@ -639,7 +714,11 @@ def cmd_status(args):
     runtime = profile.get("runtime", []) + [
         "**/node_modules", ".git/", "**/__pycache__", "**/.git/"
     ]
+    custodian = memory_custodian(profile)
     for cat in ("config", "memory"):
+        if cat == "memory" and custodian:
+            print(f"  {cat:9s}: not copied — {custodian}")
+            continue
         items = collect(home, profile.get(cat, []), secrets, runtime)
         items += extra_home_items(profile, cat, secrets, runtime)
         print(f"  {cat:9s}: {len(items)} files (after exclusions)")
