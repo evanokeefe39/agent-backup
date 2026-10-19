@@ -120,6 +120,82 @@ def test_config_and_memory_copied_to_repo(agent_home, profile_dir, tmp_path):
     assert (repo / "memory" / "memory" / "MEMORY.md").exists()
 
 
+# --- README/SKILL: "leave `memory` empty and name where it lives" — a profile
+# --- whose harness generates its memory copies none of it into git, prunes any
+# --- copy an earlier sync left, and reports the custodian in its place ---
+
+def test_memory_custodian_skips_git_and_reports(agent_home, profile_dir, tmp_path,
+                                                capsys):
+    repos = tmp_path / "repos"
+    repo = run_init(profile_dir, repos)
+    run_sync(profile_dir, repos)
+    assert (repo / "memory" / "memory" / "MEMORY.md").exists()
+
+    profile = json.loads((profile_dir / "testagent.json").read_text())
+    profile["memory"] = []
+    profile["memory_custodian"] = "data, not git: example-data mirrors it to R2"
+    (profile_dir / "testagent.json").write_text(json.dumps(profile))
+
+    capsys.readouterr()
+    run_sync(profile_dir, repos)
+    out = capsys.readouterr().out
+
+    memory_dir = repo / "memory"
+    leftover = [p for p in memory_dir.rglob("*")] if memory_dir.exists() else []
+    assert leftover == [], f"memory left in the git repo: {leftover}"
+    assert profile["memory_custodian"] in out, out
+    subject = subprocess.run(["git", "-C", str(repo), "log", "-1", "--format=%s"],
+                             capture_output=True, text=True).stdout
+    assert "config+usage" in subject, subject
+
+    agent_backup.PROFILES_DIR = profile_dir
+    agent_backup.cmd_status(argparse.Namespace(name="testagent", dir=repos))
+    assert "not copied" in capsys.readouterr().out
+    agent_backup.cmd_recover(argparse.Namespace(name="testagent", dir=repos))
+    assert "not in git" in capsys.readouterr().out
+
+
+# --- the same key, in a profile that still lists a bucket: the two say opposite
+# --- things, so the run refuses rather than picking one silently ---
+
+def test_memory_custodian_with_a_populated_bucket_is_refused(agent_home, profile_dir,
+                                                             tmp_path, capsys):
+    repos = tmp_path / "repos"
+    repo = run_init(profile_dir, repos)
+    run_sync(profile_dir, repos)
+    assert (repo / "memory" / "memory" / "MEMORY.md").exists()
+
+    profile = json.loads((profile_dir / "testagent.json").read_text())
+    profile["memory_custodian"] = "data, not git: example-data mirrors it to R2"
+    (profile_dir / "testagent.json").write_text(json.dumps(profile))
+
+    with pytest.raises(SystemExit) as exit_info:
+        run_sync(profile_dir, repos)
+
+    assert exit_info.value.code != 0
+    assert "memory_custodian" in capsys.readouterr().err
+    # refused before anything was copied or pruned
+    assert (repo / "memory" / "memory" / "MEMORY.md").exists()
+
+
+# --- reconcile: a linked destination root is a live tree, not the backup ---
+
+def test_reconcile_refuses_a_linked_destination(tmp_path, capsys):
+    target = tmp_path / "live"
+    target.mkdir()
+    (target / "MEMORY.md").write_text("live content")
+    dest = tmp_path / "memory"
+    try:
+        dest.symlink_to(target, target_is_directory=True)
+    except (OSError, NotImplementedError) as e:
+        pytest.skip(f"this platform/user cannot create a directory symlink: {e}")
+
+    agent_backup.reconcile(dest, set())
+
+    assert (target / "MEMORY.md").read_text() == "live content"
+    assert "refusing to reconcile" in capsys.readouterr().err
+
+
 # --- README: "always excludes secrets (auth.json, .env)" ---
 
 def test_secrets_excluded(agent_home, profile_dir, tmp_path):
