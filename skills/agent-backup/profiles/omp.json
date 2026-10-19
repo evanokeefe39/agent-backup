@@ -15,7 +15,7 @@
     }
   ],
   "memory": [],
-  "memory_custodian": "data, not git: example-data mirrors the tree to Cloudflare R2 under omp/memories/. It is generated from sessions by omp's consolidation pipeline, and the harness's own config repo (example-config) ignores it (.gitignore) and versions nothing under it.",
+  "memory_custodian": "data, not git: mirrored to Cloudflare R2 under omp/memories/. It is generated from sessions by omp's consolidation pipeline, and the harness's own config repo ignores it (.gitignore) and versions nothing under it.",
   "sessions": ["sessions/"],
   "usage": { "format": "jsonl", "has_cost": true },
   "secrets": [],
